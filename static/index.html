@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="description" content="Offline-first mobile-friendly VHDL workspace with local GHDL simulation, Yosys synthesis, visual netlist schematic, and interactive VCD waveforms.">
+  <title>VHDL WebStudio - Mobile-Friendly VHDL IDE</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfeff',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+              900: '#164e63',
+              950: '#083344',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- QRCode.js for Mobile LAN Pairing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="h-full w-full overflow-hidden bg-[#0b0f19] text-slate-100 flex flex-col antialiased">
+
+  <!-- Top Navigation Header -->
+  <header class="shrink-0 h-14 bg-slate-900/90 border-b border-slate-800 px-3 md:px-5 flex items-center justify-between gap-2 z-30 backdrop-blur-md">
+    <!-- Brand / Title -->
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center shadow-md shadow-cyan-500/20">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-sm md:text-base tracking-tight text-white flex items-center gap-1.5">
+            VHDL <span class="text-cyan-400">WebStudio</span>
+          </h1>
+          <span id="ghdl-status-badge" class="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">
+            GHDL 5.1 (Ready)
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Example Loader -->
+    <div class="hidden md:flex items-center gap-2">
+      <select id="example-select" class="bg-slate-800 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500 transition">
+        <option value="" disabled selected>Loading examples...</option>
+      </select>
+    </div>
+
+    <!-- Actions & Run Controls -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <!-- Stop Time Input -->
+      <div class="hidden lg:flex items-center gap-1 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700/80 text-xs">
+        <span class="text-slate-400 font-mono text-[11px]">Sim:</span>
+        <input type="text" id="sim-stop-time" value="300ns" class="w-14 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center font-mono text-xs text-cyan-300 focus:outline-none" />
+      </div>
+
+      <!-- Synthesize Button -->
+      <button id="btn-synthesize" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/30 text-xs font-medium flex items-center gap-1.5 transition active:scale-95 shadow-sm" title="Synthesize RTL Netlist (Ctrl+Shift+S)">
+        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+        </svg>
+        <span class="hidden sm:inline">Synthesize RTL</span>
+      </button>
+
+      <!-- Simulate Button -->
+      <button id="btn-simulate" class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-semibold flex items-center shadow-md shadow-cyan-500/20 transition active:scale-95 glow-cyan" title="Run Simulation (Ctrl+Enter)">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Run Simulation</span>
+      </button>
+
+      <!-- Mobile LAN Connect Button -->
+      <button id="btn-lan-share" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition" title="Connect from Mobile Phone (QR Code)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Area -->
+  <main class="flex-1 overflow-hidden relative flex flex-col lg:flex-row">
+
+    <!-- DESKTOP SPLIT VIEW / MOBILE SINGLE PANE CONTAINER -->
+
+    <!-- Pane 1: Code Editor (Design & Testbench) -->
+    <section id="view-pane-editor" class="flex flex-col flex-1 w-full lg:w-1/2 h-full border-r border-slate-800 bg-slate-900/50">
+      <!-- Editor Top Sub-Header -->
+      <div class="h-10 bg-slate-900 border-b border-slate-800 px-3 flex items-center justify-between shrink-0">
+        <!-- Editor Tabs -->
+        <div class="flex items-center gap-1">
+          <button id="tab-btn-design" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-cyan-400 border-b-2 border-cyan-400 transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            <span>entity.vhd</span>
+          </button>
+          <button id="tab-btn-tb" class="px-3 py-1.5 text-xs font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>testbench.vhd</span>
+          </button>
+        </div>
+
+        <!-- Editor Tools -->
+        <div class="flex items-center gap-1">
+          <button id="btn-download-vhd" class="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" title="Download VHDL Source">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          </button>
+          <button id="btn-clear-code" class="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition" title="Clear Code">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Editor Textarea with Line Numbers -->
+      <div class="flex-1 relative flex overflow-hidden font-mono text-xs leading-relaxed bg-[#0b0f19]">
+        <!-- Design Editor Tab -->
+        <div id="pane-design" class="absolute inset-0 flex">
+          <div id="line-numbers-design" class="w-10 py-3 pr-2 select-none text-right font-mono text-slate-600 bg-slate-950/80 border-r border-slate-800/80 overflow-hidden shrink-0"></div>
+          <textarea id="code-editor" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="-- Write VHDL Design RTL code here..." class="flex-1 h-full p-3 bg-transparent text-slate-100 resize-none outline-none font-mono text-xs md:text-sm leading-relaxed whitespace-pre overflow-auto"></textarea>
+        </div>
+
+        <!-- Testbench Editor Tab -->
+        <div id="pane-tb" class="absolute inset-0 flex hidden">
+          <div id="line-numbers-tb" class="w-10 py-3 pr-2 select-none text-right font-mono text-slate-600 bg-slate-950/80 border-r border-slate-800/80 overflow-hidden shrink-0"></div>
+          <textarea id="tb-editor" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="-- Write VHDL Testbench code here..." class="flex-1 h-full p-3 bg-transparent text-cyan-200 resize-none outline-none font-mono text-xs md:text-sm leading-relaxed whitespace-pre overflow-auto"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pane 2: Waveform & Schematic Netlist Viewers (Desktop Right Half / Mobile Switchable) -->
+    <section class="flex flex-col flex-1 w-full lg:w-1/2 h-full bg-slate-950 overflow-hidden">
+      <!-- Desktop Sub-Tabs for Right Pane -->
+      <div class="hidden lg:flex h-10 bg-slate-900 border-b border-slate-800 px-3 items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <button id="desk-tab-wf" onclick="document.getElementById('desk-pane-wf').classList.remove('hidden'); document.getElementById('desk-pane-sch').classList.add('hidden'); document.getElementById('desk-pane-stats').classList.add('hidden'); this.className='px-3 py-1 text-xs font-semibold bg-slate-800 text-cyan-400 rounded-md'; document.getElementById('desk-tab-sch').className='px-3 py-1 text-xs text-slate-400 hover:text-slate-200'; document.getElementById('desk-tab-stats').className='px-3 py-1 text-xs text-slate-400 hover:text-slate-200';" class="px-3 py-1 text-xs font-semibold bg-slate-800 text-cyan-400 rounded-md">
+            Waveform (VCD)
+          </button>
+          <button id="desk-tab-sch" onclick="document.getElementById('desk-pane-sch').classList.remove('hidden'); document.getElementById('desk-pane-wf').classList.add('hidden'); document.getElementById('desk-pane-stats').classList.add('hidden'); this.className='px-3 py-1 text-xs font-semibold bg-slate-800 text-purple-400 rounded-md'; document.getElementById('desk-tab-wf').className='px-3 py-1 text-xs text-slate-400 hover:text-slate-200'; document.getElementById('desk-tab-stats').className='px-3 py-1 text-xs text-slate-400 hover:text-slate-200';" class="px-3 py-1 text-xs text-slate-400 hover:text-slate-200">
+            Netlist Schematic
+          </button>
+          <button id="desk-tab-stats" onclick="document.getElementById('desk-pane-stats').classList.remove('hidden'); document.getElementById('desk-pane-wf').classList.add('hidden'); document.getElementById('desk-pane-sch').classList.add('hidden'); this.className='px-3 py-1 text-xs font-semibold bg-slate-800 text-emerald-400 rounded-md'; document.getElementById('desk-tab-wf').className='px-3 py-1 text-xs text-slate-400 hover:text-slate-200'; document.getElementById('desk-tab-sch').className='px-3 py-1 text-xs text-slate-400 hover:text-slate-200';" class="px-3 py-1 text-xs text-slate-400 hover:text-slate-200">
+            Synthesis Stats
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span id="sim-status-badge" class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800">
+            Ready
+          </span>
+        </div>
+      </div>
+
+      <!-- Content Panels -->
+      <div class="flex-1 relative overflow-hidden flex flex-col">
+        <!-- Waveform Panel (Desktop & Mobile) -->
+        <div id="view-pane-waveform" class="flex-1 h-full w-full flex flex-col hidden lg:flex">
+          <div id="waveform-container" class="flex-1 h-full w-full overflow-hidden"></div>
+        </div>
+
+        <!-- Schematic Panel (Desktop & Mobile) -->
+        <div id="view-pane-schematic" class="flex-1 h-full w-full flex flex-col hidden">
+          <div id="schematic-container" class="flex-1 h-full w-full overflow-hidden"></div>
+        </div>
+
+        <!-- Synthesis Stats Panel -->
+        <div id="view-pane-stats" class="flex-1 h-full w-full p-4 overflow-y-auto hidden">
+          <div id="stats-content" class="max-w-3xl mx-auto">
+            <div class="text-center py-12 text-slate-500">
+              <svg class="w-12 h-12 mx-auto mb-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              <p class="font-medium text-slate-400">No Synthesis Run Yet</p>
+              <p class="text-xs text-slate-600">Run RTL Synthesis to view gate count, cell hierarchy, and LUT utilization.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Console Panel for Mobile -->
+        <div id="view-pane-console" class="flex-1 h-full w-full p-3 overflow-y-auto hidden bg-slate-950 font-mono text-xs">
+          <div class="text-slate-400 font-semibold mb-2 border-b border-slate-800 pb-1">System & Compiler Console</div>
+          <div id="console-logs-mobile" class="space-y-1 text-slate-300"></div>
+        </div>
+      </div>
+
+      <!-- Collapsible Bottom Console (Desktop) -->
+      <div class="hidden lg:flex flex-col h-36 bg-slate-950 border-t border-slate-800 shrink-0">
+        <div class="h-6 bg-slate-900/80 px-3 flex items-center justify-between text-[11px] font-mono text-slate-400 border-b border-slate-800/80">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>GHDL Execution Console</span>
+          </div>
+          <button onclick="document.getElementById('console-logs').innerHTML=''" class="hover:text-slate-200">Clear</button>
+        </div>
+        <div id="console-logs" class="flex-1 p-2.5 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-0.5">
+          <div class="text-slate-500">[System] VHDL WebStudio initialized. Ready for simulation & synthesis.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Mobile Bottom Tab Navigation Bar (Visible only on mobile/tablets < 1024px) -->
+  <nav class="lg:hidden shrink-0 h-16 bg-slate-900 border-t border-slate-800 px-2 flex items-center justify-around z-40 pb-safe">
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-lg text-cyan-400 bg-slate-800/80 text-[10px] font-medium transition" data-screen="editor">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+      <span>Editor</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-lg text-slate-400 text-[10px] font-medium transition" data-screen="waveform">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span>Waveform</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-lg text-slate-400 text-[10px] font-medium transition" data-screen="schematic">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+      <span>Schematic</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-lg text-slate-400 text-[10px] font-medium transition" data-screen="stats">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span>Stats</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-lg text-slate-400 text-[10px] font-medium transition" data-screen="console">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span>Console</span>
+    </button>
+  </nav>
+
+  <!-- Mobile LAN Sharing Modal -->
+  <div id="modal-lan" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in text-center">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="font-bold text-sm text-white">Mobile LAN Pairing</h3>
+        </div>
+        <button id="modal-lan-close" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+
+      <p class="text-xs text-slate-400 mb-4">
+        Scan this QR code with your phone camera while connected to the same Wi-Fi network:
+      </p>
+
+      <!-- QR Code Canvas Container -->
+      <div class="flex justify-center mb-4 p-3 bg-white rounded-xl shadow-inner inline-block mx-auto">
+        <div id="lan-qrcode"></div>
+      </div>
+
+      <div class="text-left mb-2">
+        <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Direct Network URLs:</label>
+        <div id="lan-urls" class="mt-1.5 space-y-1"></div>
+      </div>
+
+      <p class="text-[10px] text-slate-500 mt-3">
+        Make sure your laptop firewall allows incoming connections on port 8000.
+      </p>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/static/js/waveform.js"></script>
+  <script src="/static/js/schematic.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
